@@ -1,1 +1,1 @@
-gunicorn --worker-class=eventlet -w 1 module:app
+gunicorn -k eventlet -w 1 module:app
