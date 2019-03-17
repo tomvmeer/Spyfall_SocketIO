@@ -6,28 +6,13 @@
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
     <script type="text/javascript" charset="utf-8">
         $(document).ready(function () {
-            namespace = '/spyfall';
+            namespace = '/register';
             var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
-
-            // Event handler for new connections.
-            // The callback function is invoked when a connection with the
-            // server is established.
-            socket.on('connect', function () {
-                socket.emit('logon', {data: 'I\'m connected!'});
-            });
 
             // Event handler for server sent data.
             // The callback function is invoked whenever the server emits data
             socket.on('my_response', function (msg) {
-                if (msg.data === "admin") {
-                    $('#admin').show();
-                } else if (msg.data === "started") {
-                    $('#admin').hide();
-                } else if (msg.data === 'logged in'){
-
-                } else {
-                    $('#log').html(msg.data);
-                }
+                $('#log').html(msg.data);
             });
 
             // Interval function that tests message latency by sending a "ping"
@@ -57,11 +42,8 @@
             // These accept data from the user and send it to the server in a
             // variety of ways
             $('form#emit').submit(function (event) {
-                socket.emit('logon', {data: [$('#emit_data').val(), $('#emit_pswd').val()]});
+                socket.emit('logon_new', {data: [$('#emit_data').val(), $('#emit_pswd').val(), $('#emit_pswd2').val()]});
                 $('#login').html('');
-            });
-            $('button#admin').click(function (event) {
-                socket.emit('start');
             });
         });
     </script>
@@ -70,16 +52,17 @@
 <div style="width: 50%">
     <img src="{{url_for('static', filename='spyfall-banner.png')}}">
     <p>Latency: <b><span id="ping-pong"></span>ms</b></p>
-    <a href="/register">Register</a>
     <div id="login">
         <form id="emit" method="POST" action='#'>
             <input type="text" name="emit_data" id="emit_data" placeholder="user name">
+            <br>
             <input type="password" name="emit_data" id="emit_pswd" placeholder="password">
-            <input type="submit" value="log in">
+            <br>
+            <input type="password" name="emit_data" id="emit_pswd2" placeholder="password again">
+            <br>
+            <input type="submit" value="register">
         </form>
     </div>
-    <hr>
-    <button id='admin' type="button" style="display: none">Start game</button>
     <div id="log"></div>
 </div>
 </body>
