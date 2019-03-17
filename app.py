@@ -18,7 +18,7 @@ game_state = 'waiting'
 thread_lock = Lock()
 clients = {}  # A dictionary of client cookie ids associated with user names.
 roles = {}
-round_time = 15
+round_time = 200
 
 
 def state_waiting(clients, admin):
@@ -46,7 +46,7 @@ def state_starting(clients):
     global game_state
     random.seed(os.urandom(128))
     locs = os.listdir('locations')
-    with open('locations/' + locs[random.randint(0, len(locs) - 1)], "r") as f:
+    with open('locations/' + locs[random.randrange(0, len(locs))], "r") as f:
         lines = f.read().split('\n')
     loc = lines[0]
     loc_roles = lines[1:]
