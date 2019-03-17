@@ -10,3 +10,4 @@ python-socketio
 six==1.9.0
 Werkzeug==0.12.2
 Eventlet
+gunicorn
