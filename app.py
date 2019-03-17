@@ -29,11 +29,13 @@ def state_waiting(clients, admin):
             for c in clients:
                 if clients[c] is not None:
                     if clients[c] == clients[client]:
-                        display += 'You->'
+                        display += '<b>'
                     if admin == clients[c]:
-                        display += str(clients[c]) + ' (admin) <br>'
+                        display += str(clients[c]) + ' (admin) </b><br>'
                     else:
-                        display += str(clients[c]) + '<br>'
+                        display += str(clients[c]) + '</b><br>'
+                    if clients[c] != clients[client]:
+                        display.replace('</b>', "")
             socketio.emit('my_response',
                           {'data': display},
                           namespace='/spyfall', room=client)
@@ -42,6 +44,7 @@ def state_waiting(clients, admin):
 def state_starting(clients):
     global roles
     global game_state
+    random.seed(os.urandom(128))
     locs = os.listdir('locations')
     with open('locations/' + locs[random.randint(0, len(locs) - 1)], "r") as f:
         lines = f.read().split('\n')
@@ -50,7 +53,7 @@ def state_starting(clients):
     i, k = 0, 0
     num_players = len(clients) - list(clients.values()).count(None)
     randomlist = random.sample(range(1, len(loc_roles)), num_players - 1)
-    ispy = random.randint(0, num_players - 1)
+    ispy = random.randrange(0, num_players)
     print(randomlist, ispy, num_players)
     for client in clients:
         if clients[client] is not None:
@@ -171,6 +174,9 @@ def use_logon(message):
                     to_remove.append(i)
             for i in to_remove:
                 clients.pop(i)
+                socketio.emit('my_response',
+                              {'data': 'Logged in from other location!'},
+                              namespace='/spyfall', room=i)
             clients[request.sid] = username
             socketio.emit('my_response',
                           {'data': 'logged in'},
@@ -269,8 +275,9 @@ def user_connect():
 @socketio.on('start', namespace='/spyfall')
 def start_game():
     global game_state
-    game_state = 'starting'
-    print('starting')
+    if request.sid in clients:
+        game_state = 'starting'
+        print('starting')
 
 
 # Handle disconnects:
