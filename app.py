@@ -9,7 +9,7 @@ import time
 import hashlib
 
 async_mode = None
-app = Flask(__name__)
+app = Flask('Spyfall')
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode=async_mode)
 thread = None
@@ -19,7 +19,7 @@ thread_lock = Lock()
 clients = {}  # A dictionary of client cookie ids associated with user names.
 roles = {}
 round_time = 200
-
+inactive = []
 
 def state_waiting(clients, admin):
     # Send each client a personal message containing all connected users.
@@ -60,11 +60,15 @@ def state_starting(clients):
             if k == ispy:
                 roles[clients[client]] = loc_roles[0]
             else:
-                roles[clients[client]] = loc_roles[randomlist[i]]
+                roles[clients[client]] = loc_roles[int(randomlist[i])]
                 i += 1
             k += 1
             if roles[clients[client]] == 'Spy':
                 display = "<h1>You are the spy!</h1>"
+                display += '<br> Location reference: <br>'
+                for i in locs[:-1]:
+                    display += str(i).replace('.txt', '') + ', '
+                display += locs[-1].replace('.txt', '')
             else:
                 display = "<h1>" + loc + "</h1>"
                 display += "You are " + roles[clients[client]]
@@ -75,10 +79,10 @@ def state_starting(clients):
     socketio.emit('my_response',
                   {'data': 'started'},
                   namespace='/spyfall')
-    return loc
+    return loc, locs
 
 
-def state_started(clients, loc, start_time):
+def state_started(clients, loc, start_time, locs):
     global roles
     print(roles)
     for client in clients:
@@ -88,6 +92,10 @@ def state_started(clients, loc, start_time):
                 display = 'Time left: ' + str(time_left) + ' seconds.'
                 if roles[clients[client]] == 'Spy':
                     display += "<h1>You are the spy!</h1>"
+                    display += '<br> Location reference: <br>'
+                    for i in locs[:-1]:
+                        display += str(i).replace('.txt', '') + ', '
+                    display += locs[-1].replace('.txt', '')
                 else:
                     display += "<h1>" + loc + "</h1>"
                     display += "You are " + roles[clients[client]]
@@ -109,17 +117,14 @@ def background_thread():
     count = 0
     admin = None
     global game_state
+    global inactive
     while True:
-        # print(clients)
+        print(clients)
         socketio.sleep(0.5)  # To make sure we are not spamming updates.
         count += 1
-        inactive = []
         for client in clients:
-            # If the client is dead:
-            if clients[client] == -1:
-                inactive.append(client)
             # If the client has a name and is connected:
-            elif clients[client] is not None:
+            if clients[client] is not None:
                 # First client becomes admin:
                 if (admin is None or admin == clients[
                     client] or admin not in clients.values()) and game_state != 'started':
@@ -128,15 +133,18 @@ def background_thread():
                                   namespace='/spyfall', room=client)
                     admin = clients[client]
         # Remove inactive clients.
-        for client in inactive:
-            clients.pop(client)
+        if game_state == 'waiting':
+            for client in inactive:
+                if client in clients:
+                    clients.pop(client)
+            inactive = []
         if game_state == 'waiting':
             state_waiting(clients, admin)
         elif game_state == 'starting':
-            loc = state_starting(clients)
+            loc, locs = state_starting(clients)
             start_time = time.time()
         elif game_state == 'started':
-            if state_started(clients, loc, start_time):
+            if state_started(clients, loc, start_time, locs):
                 game_state = 'waiting'
 
 
@@ -177,7 +185,7 @@ def use_logon(message):
                 socketio.emit('my_response',
                               {'data': 'Logged in from other location!'},
                               namespace='/spyfall', room=i)
-            clients[request.sid] = username
+                clients[request.sid] = username
             socketio.emit('my_response',
                           {'data': 'logged in'},
                           namespace='/spyfall', room=request.sid)
@@ -194,15 +202,6 @@ def use_logon(message):
             socketio.emit('my_response',
                           {'data': 'Game in progress, please wait.'},
                           namespace='/spyfall', room=request.sid)
-
-
-# Handle a disconnect:
-@socketio.on('disconnect_request', namespace='/spyfall')
-def disconnect_request():
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': 'Disconnected!', 'count': session['receive_count']})
-    disconnect()
 
 
 # Handle the latency calculation requests:
@@ -285,7 +284,8 @@ def start_game():
 def user_disconnect():
     print('-------------------')
     global clients
-    clients[request.sid] = -1
+    global inactive
+    inactive.append(request.sid)
     print('Client disconnected', request.sid)
 
 
