@@ -21,6 +21,7 @@ roles = {}
 round_time = 200
 inactive = []
 
+
 def state_waiting(clients, admin):
     # Send each client a personal message containing all connected users.
     for client in clients:
@@ -222,11 +223,25 @@ def use_register(message):
     passwd1 = hashlib.sha256(message['data'][1].encode()).hexdigest()
     passwd2 = hashlib.sha256(message['data'][2].encode()).hexdigest()
     users = []
+    if len(username) < 4:
+        socketio.emit('my_response',
+                      {'data': 'Username too short! <a href="/register"> try again </a>'},
+                      namespace='/register', room=request.sid)
+        return False
     with open('passwords.dat', 'r') as f:
         lines = f.read().split('\n')
         for line in lines:
-            users.append(line.split(" ")[0])
-    if username in users:
+            users.append(line.split(" ")[0].lower())
+            if line.split(" ")[0].lower() in username.lower():
+                socketio.emit('my_response',
+                              {'data': 'Username taken <a href="/register"> try again </a>'},
+                              namespace='/register', room=request.sid)
+                return False
+            elif username.lower() in line.split(" ")[0].lower():
+                    socketio.emit('my_response',
+                                  {'data': 'Username taken <a href="/register"> try again </a>'},
+                                  namespace='/register', room=request.sid)
+    if username.lower() in users:
         socketio.emit('my_response',
                       {'data': 'Username taken <a href="/register"> try again </a>'},
                       namespace='/register', room=request.sid)
