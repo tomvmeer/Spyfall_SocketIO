@@ -13,12 +13,13 @@ app = Flask('Spyfall')
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode=async_mode)
 thread = None
+admin = None
 thread_r = None
 game_state = 'waiting'
 thread_lock = Lock()
 clients = {}  # A dictionary of client cookie ids associated with user names.
 roles = {}
-round_time = 200
+round_time = 260
 inactive = []
 
 
@@ -51,7 +52,7 @@ def state_starting(clients):
         lines = f.read().split('\n')
     loc = lines[0]
     loc_roles = lines[1:]
-    i, k = 0, 0
+    j, k = 0, 0
     num_players = len(clients) - list(clients.values()).count(None)
     randomlist = random.sample(range(1, len(loc_roles)), num_players - 1)
     ispy = random.randrange(0, num_players)
@@ -61,8 +62,8 @@ def state_starting(clients):
             if k == ispy:
                 roles[clients[client]] = loc_roles[0]
             else:
-                roles[clients[client]] = loc_roles[int(randomlist[i])]
-                i += 1
+                roles[clients[client]] = loc_roles[int(randomlist[j])]
+                j += 1
             k += 1
             if roles[clients[client]] == 'Spy':
                 display = "<h1>You are the spy!</h1>"
@@ -116,7 +117,7 @@ def state_started(clients, loc, start_time, locs):
 def background_thread():
     # Always running in the background, 1 for all clients.
     count = 0
-    admin = None
+    global admin
     global game_state
     global inactive
     while True:
@@ -154,6 +155,12 @@ def background_thread():
 def index_page():
     return render_template('index.html', async_mode=socketio.async_mode)
 
+
+@app.route('/admin')
+def admin_page():
+    global game_state
+    game_state = 'waiting'
+    return 'Done'
 
 # Serve the register page
 @app.route('/register')
@@ -238,9 +245,9 @@ def use_register(message):
                               namespace='/register', room=request.sid)
                 return False
             elif username.lower() in line.split(" ")[0].lower():
-                    socketio.emit('my_response',
-                                  {'data': 'Username taken <a href="/register"> try again </a>'},
-                                  namespace='/register', room=request.sid)
+                socketio.emit('my_response',
+                              {'data': 'Username taken <a href="/register"> try again </a>'},
+                              namespace='/register', room=request.sid)
     if username.lower() in users:
         socketio.emit('my_response',
                       {'data': 'Username taken <a href="/register"> try again </a>'},
@@ -305,4 +312,4 @@ def user_disconnect():
 
 
 if __name__ == '__main__':
-    socketio.run(app, debug=False)
+    socketio.run(app, debug=True)
